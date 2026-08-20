@@ -145,6 +145,11 @@
       <h2>Lançar preventiva</h2>
       <label for="m-placa">Placa</label>
       <input id="m-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
+      <label for="m-tipo-veiculo">Tipo de veículo</label>
+      <select id="m-tipo-veiculo">
+        <option value="CAVALO MECANICO">Cavalo Mecânico (50.000 km)</option>
+        <option value="TRUCK">Truck (45.000 km)</option>
+      </select>
       <label for="m-data">Data</label>
       <input id="m-data" type="date">
       <label for="m-km">KM da troca</label>
@@ -250,6 +255,7 @@ async function api(path, opts){
 // ---------- Mecânica: lançar ----------
 document.getElementById('btn-lancar').addEventListener('click', async ()=>{
   const placa = document.getElementById('m-placa').value.trim().toUpperCase();
+  const tipoVeiculo = document.getElementById('m-tipo-veiculo').value;
   const data = document.getElementById('m-data').value;
   const km = document.getElementById('m-km').value;
   const tipo = document.getElementById('m-tipo').value.trim().toUpperCase();
@@ -269,7 +275,7 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
     await api('/api/lancar', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({placa, data, km: Number(km), tipo})
+      body: JSON.stringify({placa, tipoVeiculo, data, km: Number(km), tipo})
     });
     showMsg(msg, 'Preventiva lançada com sucesso.', true);
     document.getElementById('m-placa').value = '';
