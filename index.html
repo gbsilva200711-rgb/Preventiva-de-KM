@@ -145,10 +145,12 @@
       <h2>Lançar preventiva</h2>
       <label for="m-placa">Placa</label>
       <input id="m-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
-      <label for="m-tipo-veiculo">Tipo de veículo</label>
+      <label for="m-tipo-veiculo">Modelo do veículo</label>
       <select id="m-tipo-veiculo">
-        <option value="CAVALO MECANICO">Cavalo Mecânico (50.000 km)</option>
-        <option value="TRUCK">Truck (45.000 km)</option>
+        <option value="ATEGO 1933SCE">ATEGO 1933SCE (45.000 km)</option>
+        <option value="ACTROSS 2045">ACTROSS 2045 (45.000 km)</option>
+        <option value="VM360">VM360 (50.000 km)</option>
+        <option value="VM 290 6X2 R">VM 290 6X2 R (50.000 km)</option>
       </select>
       <label for="m-data">Data</label>
       <input id="m-data" type="date">
@@ -199,6 +201,20 @@
         <input id="a-km" type="number" inputmode="numeric" placeholder="Ex: 158900">
         <button class="btn" id="btn-atualizar-km">Atualizar</button>
         <div class="msg" id="msg-atualizar-km"></div>
+      </div>
+
+      <div class="card">
+        <h2>Importar KM do Omnilink</h2>
+        <p style="font-size:13px;color:#666;margin:0 0 10px;">Suba o CSV exportado do Omnilink. Veículo desligado (KM zerado) não apaga o KM que já está salvo — só atualiza quando vier um valor real.</p>
+        <input type="file" id="om-file" accept=".csv">
+        <div id="om-preview" style="display:none; margin-top:12px;">
+          <label for="om-col-placa">Qual coluna é a Placa?</label>
+          <select id="om-col-placa"></select>
+          <label for="om-col-km">Qual coluna é o KM/Hodômetro?</label>
+          <select id="om-col-km"></select>
+          <button class="btn" id="btn-om-importar" style="margin-top:10px;">Importar</button>
+        </div>
+        <div class="msg" id="msg-om-importar"></div>
       </div>
 
     </div>
@@ -384,6 +400,88 @@ document.getElementById('btn-atualizar-km').addEventListener('click', async ()=>
     showMsg(msg, 'Não deu pra atualizar: ' + e.message, false);
   }finally{
     btn.disabled = false; btn.textContent = 'Atualizar';
+  }
+});
+
+// ---------- ADM: importar KM do Omnilink (CSV) ----------
+let omHeaders = [];
+let omRows = [];
+
+document.getElementById('om-file').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  const msg = document.getElementById('msg-om-importar');
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      parseOmnilinkCsv(ev.target.result);
+    }catch(err){
+      showMsg(msg, 'Não consegui ler esse arquivo: ' + err.message, false);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function parseOmnilinkCsv(text){
+  const msg = document.getElementById('msg-om-importar');
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(lines.length < 2){
+    showMsg(msg, 'Arquivo vazio ou sem linhas de dados.', false);
+    document.getElementById('om-preview').style.display = 'none';
+    return;
+  }
+  const delim = (lines[0].match(/;/g)||[]).length >= (lines[0].match(/,/g)||[]).length ? ';' : ',';
+  omHeaders = lines[0].split(delim).map(h=>h.trim());
+  omRows = lines.slice(1).map(line=>{
+    const cols = line.split(delim);
+    const obj = {};
+    omHeaders.forEach((h,i)=> obj[h] = (cols[i]||'').trim());
+    return obj;
+  });
+
+  const selPlaca = document.getElementById('om-col-placa');
+  const selKm = document.getElementById('om-col-km');
+  const options = omHeaders.map(h=>`<option value="${h}">${h}</option>`).join('');
+  selPlaca.innerHTML = options;
+  selKm.innerHTML = options;
+  const guessPlaca = omHeaders.find(h=>/placa/i.test(h));
+  const guessKm = omHeaders.find(h=>/km|od[oô]metro|hod[oô]metro/i.test(h));
+  if(guessPlaca) selPlaca.value = guessPlaca;
+  if(guessKm) selKm.value = guessKm;
+
+  document.getElementById('om-preview').style.display = 'block';
+  showMsg(msg, omRows.length + ' linha(s) lida(s) do arquivo. Confira as colunas abaixo e clique em Importar.', true);
+}
+
+document.getElementById('btn-om-importar').addEventListener('click', async ()=>{
+  const colPlaca = document.getElementById('om-col-placa').value;
+  const colKm = document.getElementById('om-col-km').value;
+  const msg = document.getElementById('msg-om-importar');
+  const btn = document.getElementById('btn-om-importar');
+
+  const registros = omRows
+    .map(r => ({ placa: (r[colPlaca]||'').trim().toUpperCase(), km: r[colKm] }))
+    .filter(r => r.placa);
+
+  if(!registros.length){
+    showMsg(msg, 'Nenhuma linha com placa válida encontrada nesse arquivo.', false);
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Importando…';
+  try{
+    const r = await api('/api/importar-odometro', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ registros, senha: admSenha })
+    });
+    showMsg(msg,
+      `Atualizadas: ${r.atualizados} · Zeradas (ignoradas): ${r.ignoradosZerados} · Sem mudança: ${r.semAlteracao} · Placas não cadastradas: ${r.naoEncontradas.length}`,
+      true);
+    loadRelatorio();
+  }catch(e){
+    showMsg(msg, 'Não deu pra importar: ' + e.message, false);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Importar';
   }
 });
 </script>
