@@ -104,6 +104,15 @@
   .fleet-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; }
   .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
   .dot.ok{ background:var(--ok);} .dot.warn{ background:var(--warn);} .dot.late{ background:var(--late);}
+
+  .fleet-group{ margin-bottom:10px; }
+  .fleet-group-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; border-radius:10px; background:var(--surface-2);
+    font-weight:600; font-size:14px; cursor:pointer; user-select:none;
+  }
+  .fleet-group-header:active{ opacity:.8; }
+  .fleet-group-body{ padding-top:8px; }
   .faltam{ font-family:'JetBrains Mono', monospace; font-size:13px; text-align:right;}
 
   .empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:24px 0;}
@@ -165,6 +174,7 @@
 
     <div class="card">
       <h2>Status da frota</h2>
+      <input id="fleet-search" type="text" placeholder="Buscar placa..." autocapitalize="characters" style="margin-bottom:12px;">
       <div id="fleet-list"><div class="empty">Carregando…</div></div>
       <div class="refresh-link" id="refresh-fleet">atualizar lista</div>
     </div>
@@ -187,9 +197,9 @@
       <div class="card">
         <h2>Resumo</h2>
         <div class="stat-grid" id="adm-stats">
-          <div class="stat ok"><div class="num">–</div><div class="lbl">OK</div></div>
+          <div class="stat ok"><div class="num">–</div><div class="lbl">Em dia</div></div>
           <div class="stat warn"><div class="num">–</div><div class="lbl">Perto</div></div>
-          <div class="stat late"><div class="num">–</div><div class="lbl">Vencida</div></div>
+          <div class="stat late"><div class="num">–</div><div class="lbl">Vencido</div></div>
         </div>
         <div style="margin-top:16px;" id="adm-bars"></div>
       </div>
@@ -249,9 +259,9 @@ function showMsg(el, text, ok){
   el.textContent = text;
   el.className = 'msg show ' + (ok ? 'ok' : 'err');
 }
-function statusClass(status){
-  if(status === 'Vencida') return 'late';
-  if(status === 'Perto de vencer') return 'warn';
+function statusClass(v){
+  if(v.status === 'VENCIDO') return 'late';
+  if(v.perto) return 'warn';
   return 'ok';
 }
 function fmtNum(n){
@@ -307,31 +317,76 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
 });
 
 // ---------- Mecânica: status da frota ----------
+let fleetData = [];
+let fleetOpenGroups = { vencido: true, perto: false, emdia: false };
+
+function renderFleetRow(v){
+  const cls = statusClass(v);
+  const label = v.status === 'VENCIDO' ? 'VENCIDO' : (v.perto ? 'EM DIA · perto de vencer' : 'EM DIA');
+  return `<div class="fleet-row ${cls}">
+      <div>
+        <div class="placa">${v.placa}</div>
+        <div class="fleet-meta"><span class="dot ${cls}"></span>${label}</div>
+      </div>
+      <div class="faltam">${v.faltam >= 0 ? fmtNum(v.faltam)+' km' : 'vencida'}</div>
+    </div>`;
+}
+
+function renderFleet(){
+  const box = document.getElementById('fleet-list');
+  const termo = document.getElementById('fleet-search').value.trim().toUpperCase();
+
+  if(termo){
+    const filtrados = fleetData.filter(v=>v.placa.includes(termo));
+    box.innerHTML = filtrados.length
+      ? filtrados.map(renderFleetRow).join('')
+      : '<div class="empty">Nenhuma placa encontrada.</div>';
+    return;
+  }
+
+  const grupos = [
+    { key:'vencido', titulo:'Vencidas', itens: fleetData.filter(v=>v.status==='VENCIDO') },
+    { key:'perto', titulo:'Perto de vencer', itens: fleetData.filter(v=>v.status!=='VENCIDO' && v.perto) },
+    { key:'emdia', titulo:'Em dia', itens: fleetData.filter(v=>v.status!=='VENCIDO' && !v.perto) },
+  ];
+
+  box.innerHTML = grupos.map(g=>{
+    const aberto = fleetOpenGroups[g.key];
+    return `<div class="fleet-group">
+      <div class="fleet-group-header" data-group="${g.key}">
+        <span>${g.titulo} (${g.itens.length})</span>
+        <span>${aberto ? '▲' : '▼'}</span>
+      </div>
+      ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(renderFleetRow).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  box.querySelectorAll('.fleet-group-header').forEach(h=>{
+    h.addEventListener('click', ()=>{
+      const k = h.dataset.group;
+      fleetOpenGroups[k] = !fleetOpenGroups[k];
+      renderFleet();
+    });
+  });
+}
+
 async function loadFleet(){
   const box = document.getElementById('fleet-list');
   box.innerHTML = '<div class="empty">Carregando…</div>';
   try{
     const data = await api('/api/status');
-    const items = data.frota || [];
-    if(items.length === 0){
+    fleetData = data.frota || [];
+    if(fleetData.length === 0){
       box.innerHTML = '<div class="empty">Nenhuma placa cadastrada ainda.</div>';
       return;
     }
-    box.innerHTML = items.map(v=>{
-      const cls = statusClass(v.status);
-      return `<div class="fleet-row ${cls}">
-        <div>
-          <div class="placa">${v.placa}</div>
-          <div class="fleet-meta"><span class="dot ${cls}"></span>${v.status}</div>
-        </div>
-        <div class="faltam">${v.faltam >= 0 ? fmtNum(v.faltam)+' km' : 'vencida'}</div>
-      </div>`;
-    }).join('');
+    renderFleet();
   }catch(e){
     box.innerHTML = '<div class="empty">Erro ao carregar: '+e.message+'</div>';
   }
 }
 document.getElementById('refresh-fleet').addEventListener('click', loadFleet);
+document.getElementById('fleet-search').addEventListener('input', renderFleet);
 loadFleet();
 
 // ---------- ADM: login ----------
@@ -363,9 +418,9 @@ async function loadRelatorio(){
 
     const total = data.ok + data.perto + data.vencida || 1;
     const bars = [
-      {lbl:'OK', val:data.ok, color:'var(--ok)'},
+      {lbl:'Em dia', val:data.ok, color:'var(--ok)'},
       {lbl:'Perto de vencer', val:data.perto, color:'var(--warn)'},
-      {lbl:'Vencida', val:data.vencida, color:'var(--late)'},
+      {lbl:'Vencido', val:data.vencida, color:'var(--late)'},
     ];
     document.getElementById('adm-bars').innerHTML = bars.map(b=>`
       <div class="bar-row">
