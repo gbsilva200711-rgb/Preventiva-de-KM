@@ -18,7 +18,7 @@
     --ok: #3fb68a;
     --warn: #e8a33d;
     --late: #e5484d;
-    --accent: #5b8def;
+    --accent: #b0334a;
     --radius: 14px;
   }
   *{box-sizing:border-box;}
@@ -55,7 +55,7 @@
     background:var(--surface); border:1px solid var(--line);
     border-radius:10px; cursor:pointer; transition:.15s;
   }
-  .tab.active{ color:var(--bg); background:var(--accent); border-color:var(--accent); font-weight:600;}
+  .tab.active{ color:#fdf2f2; background:var(--accent); border-color:var(--accent); font-weight:600;}
 
   section.panel{ padding:20px; display:none;}
   section.panel.active{ display:block;}
@@ -80,7 +80,7 @@
 
   button.btn{
     width:100%; margin-top:18px; padding:14px; border:none; border-radius:10px;
-    background:var(--accent); color:#0b1220; font-weight:700; font-size:14px;
+    background:var(--accent); color:#fdf2f2; font-weight:700; font-size:14px;
     cursor:pointer; letter-spacing:.02em; transition:.15s;
   }
   button.btn:active{ transform:scale(.98); }
@@ -144,12 +144,34 @@
   </header>
 
   <div class="tabs">
-    <div class="tab active" data-tab="mecanica">Mecânica</div>
-    <div class="tab" data-tab="adm">ADM</div>
+    <div class="tab active" data-tab="motoristas">Motoristas</div>
+    <div class="tab" data-tab="frota">Frota</div>
   </div>
 
-  <!-- ===================== ÁREA MECÂNICA ===================== -->
-  <section class="panel active" id="panel-mecanica">
+  <!-- ===================== ÁREA MOTORISTAS (sem senha) ===================== -->
+  <section class="panel active" id="panel-motoristas">
+    <div class="card">
+      <h2>Consultar placa</h2>
+      <label for="mot-placa">Placa</label>
+      <input id="mot-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
+      <button class="btn" id="btn-mot-buscar">Buscar</button>
+      <div id="mot-resultado" style="margin-top:14px;"></div>
+    </div>
+  </section>
+
+  <!-- ===================== ÁREA FROTA (pede senha) ===================== -->
+  <section class="panel" id="panel-frota">
+
+    <div class="card login-box" id="frota-login">
+      <h2 style="justify-content:center">Área da frota</h2>
+      <p>Digite sua senha (manutenção ou ADM)</p>
+      <input id="frota-senha" type="password" placeholder="Senha" style="max-width:220px; margin:0 auto 14px; display:block;">
+      <button class="btn" id="btn-frota-login" style="max-width:220px; margin:0 auto;">Entrar</button>
+      <div class="msg" id="msg-frota-login"></div>
+    </div>
+
+    <!-- ---- conteúdo liberado pela senha de MANUTENÇÃO ---- -->
+    <div id="frota-manutencao" style="display:none;">
 
     <div class="card">
       <h2>Lançar preventiva</h2>
@@ -180,20 +202,12 @@
       <div class="refresh-link" id="refresh-fleet">atualizar lista</div>
     </div>
 
-  </section>
+    <div class="refresh-link" id="frota-sair-manutencao">sair</div>
 
-  <!-- ===================== ÁREA ADM ===================== -->
-  <section class="panel" id="panel-adm">
-
-    <div class="card login-box" id="adm-login">
-      <h2 style="justify-content:center">Área restrita</h2>
-      <p>Digite a senha da equipe ADM</p>
-      <input id="adm-senha" type="password" placeholder="Senha" style="max-width:220px; margin:0 auto 14px; display:block;">
-      <button class="btn" id="btn-adm-login" style="max-width:220px; margin:0 auto;">Entrar</button>
-      <div class="msg" id="msg-adm-login"></div>
     </div>
 
-    <div id="adm-content" style="display:none;">
+    <!-- ---- conteúdo liberado pela senha de ADM ---- -->
+    <div id="frota-adm" style="display:none;">
 
       <div class="card">
         <h2>Resumo</h2>
@@ -229,6 +243,8 @@
         <div class="msg" id="msg-om-importar"></div>
       </div>
 
+      <div class="refresh-link" id="frota-sair-adm">sair</div>
+
     </div>
   </section>
 
@@ -242,7 +258,8 @@
 ========================================================= */
 const WORKER_URL = "https://curly-voice-6d40preventiva-frota.jtassistentetransporte.workers.dev";
 
-let admSenha = null;
+let frotaSenha = null;
+let frotaRole = null;
 
 // ---------- Tabs ----------
 document.querySelectorAll('.tab').forEach(tab=>{
@@ -251,9 +268,77 @@ document.querySelectorAll('.tab').forEach(tab=>{
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
-    if(tab.dataset.tab === 'mecanica') loadFleet();
   });
 });
+
+// ---------- Motoristas: buscar placa (sem senha) ----------
+async function buscarPlacaMotorista(){
+  const placa = document.getElementById('mot-placa').value.trim().toUpperCase();
+  const box = document.getElementById('mot-resultado');
+  if(!placa){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="empty">Buscando…</div>';
+  try{
+    const data = await api('/api/status');
+    const v = (data.frota || []).find(f => f.placa === placa);
+    if(!v){
+      box.innerHTML = '<div class="empty">Placa não encontrada.</div>';
+      return;
+    }
+    const cls = statusClass(v);
+    const label = v.status === 'VENCIDO' ? 'VENCIDO' : (v.perto ? 'EM DIA · perto de vencer' : 'EM DIA');
+    box.innerHTML = `<div class="fleet-row ${cls}">
+      <div>
+        <div class="placa">${v.placa}</div>
+        <div class="fleet-meta"><span class="dot ${cls}"></span>${label}</div>
+      </div>
+      <div class="faltam">${v.faltam >= 0 ? fmtNum(v.faltam)+' km' : 'vencida'}</div>
+    </div>`;
+  }catch(e){
+    box.innerHTML = '<div class="empty">Não deu pra buscar: ' + e.message + '</div>';
+  }
+}
+document.getElementById('btn-mot-buscar').addEventListener('click', buscarPlacaMotorista);
+document.getElementById('mot-placa').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') buscarPlacaMotorista(); });
+
+// ---------- Frota: login (manutenção ou ADM) ----------
+async function frotaLogin(){
+  const senha = document.getElementById('frota-senha').value;
+  const msg = document.getElementById('msg-frota-login');
+  const btn = document.getElementById('btn-frota-login');
+  if(!senha){ showMsg(msg, 'Digite a senha.', false); return; }
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  try{
+    const r = await api('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({senha}) });
+    frotaSenha = senha;
+    frotaRole = r.role;
+    document.getElementById('frota-login').style.display = 'none';
+    if(frotaRole === 'manutencao'){
+      document.getElementById('frota-manutencao').style.display = 'block';
+      loadFleet();
+    } else {
+      document.getElementById('frota-adm').style.display = 'block';
+      loadRelatorio();
+    }
+  }catch(e){
+    showMsg(msg, 'Erro: ' + e.message, false);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+document.getElementById('btn-frota-login').addEventListener('click', frotaLogin);
+document.getElementById('frota-senha').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') frotaLogin(); });
+
+function frotaSair(){
+  frotaSenha = null;
+  frotaRole = null;
+  document.getElementById('frota-senha').value = '';
+  document.getElementById('msg-frota-login').className = 'msg';
+  document.getElementById('frota-manutencao').style.display = 'none';
+  document.getElementById('frota-adm').style.display = 'none';
+  document.getElementById('frota-login').style.display = 'block';
+}
+document.getElementById('frota-sair-manutencao').addEventListener('click', frotaSair);
+document.getElementById('frota-sair-adm').addEventListener('click', frotaSair);
 
 // ---------- Helpers ----------
 function showMsg(el, text, ok){
@@ -303,7 +388,7 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
     await api('/api/lancar', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({placa, tipoVeiculo, data, km: Number(km), tipo})
+      body: JSON.stringify({placa, tipoVeiculo, data, km: Number(km), tipo, senha: frotaSenha})
     });
     showMsg(msg, 'Preventiva lançada com sucesso.', true);
     document.getElementById('m-placa').value = '';
@@ -388,30 +473,11 @@ async function loadFleet(){
 }
 document.getElementById('refresh-fleet').addEventListener('click', loadFleet);
 document.getElementById('fleet-search').addEventListener('input', renderFleet);
-loadFleet();
-
-// ---------- ADM: login ----------
-document.getElementById('btn-adm-login').addEventListener('click', async ()=>{
-  const senha = document.getElementById('adm-senha').value;
-  const msg = document.getElementById('msg-adm-login');
-  try{
-    await api('/api/login', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({senha})
-    });
-    admSenha = senha;
-    document.getElementById('adm-login').style.display = 'none';
-    document.getElementById('adm-content').style.display = 'block';
-    loadRelatorio();
-  }catch(e){
-    showMsg(msg, 'Erro: ' + e.message, false);
-  }
-});
 
 // ---------- ADM: relatório ----------
 async function loadRelatorio(){
   try{
-    const data = await api('/api/relatorio?senha=' + encodeURIComponent(admSenha));
+    const data = await api('/api/relatorio?senha=' + encodeURIComponent(frotaSenha));
     const statEls = document.querySelectorAll('#adm-stats .stat .num');
     statEls[0].textContent = data.ok;
     statEls[1].textContent = data.perto;
@@ -447,7 +513,7 @@ document.getElementById('btn-atualizar-km').addEventListener('click', async ()=>
   try{
     await api('/api/atualizar-km', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({placa, km: Number(km), senha: admSenha})
+      body: JSON.stringify({placa, km: Number(km), senha: frotaSenha})
     });
     showMsg(msg, 'KM atualizado.', true);
     document.getElementById('a-placa').value = '';
@@ -568,7 +634,7 @@ document.getElementById('btn-om-importar').addEventListener('click', async ()=>{
   try{
     const r = await api('/api/importar-odometro', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ registros, senha: admSenha })
+      body: JSON.stringify({ registros, senha: frotaSenha })
     });
     showMsg(msg,
       `Atualizadas: ${r.atualizados} · Zeradas (ignoradas): ${r.ignoradosZerados} · Sem mudança: ${r.semAlteracao} · Placas não cadastradas: ${r.naoEncontradas.length}`,
