@@ -57,6 +57,16 @@
   }
   .tab.active{ color:#fdf2f2; background:var(--accent); border-color:var(--accent); font-weight:600;}
 
+  .subtabs{ display:flex; gap:8px; margin-bottom:16px; }
+  .subtab{
+    flex:1; text-align:center; padding:9px 8px;
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--text-dim);
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:8px; cursor:pointer; transition:.15s;
+  }
+  .subtab.active{ color:#fdf2f2; background:var(--accent); border-color:var(--accent); font-weight:600;}
+
   section.panel{ padding:20px; display:none;}
   section.panel.active{ display:block;}
 
@@ -173,18 +183,27 @@
     <!-- ---- conteúdo liberado pela senha de MANUTENÇÃO ---- -->
     <div id="frota-manutencao" style="display:none;">
 
+    <div class="subtabs">
+      <div class="subtab active" data-subtab="mt-filtros">Filtros</div>
+      <div class="subtab" data-subtab="mt-geral">Revisão Geral</div>
+    </div>
+
+    <div class="subpanel active" id="sub-mt-filtros">
+
     <div class="card">
-      <h2>Lançar preventiva</h2>
+      <h2>Lançar preventiva (Filtro)</h2>
       <label for="m-placa">Placa</label>
       <input id="m-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
       <label for="m-tipo-veiculo">Modelo do veículo</label>
       <select id="m-tipo-veiculo">
-        <option value="ATEGO 1933SCE">ATEGO 1933SCE (45.000 km)</option>
-        <option value="ACTROSS 2045">ACTROSS 2045 (60.000 ou 70.000, conforme garantia)</option>
-        <option value="VM360">VM360 (50.000 km)</option>
-        <option value="VM 290 6X2 R">VM 290 6X2 R (50.000 km)</option>
-        <option value="SEMI-REBOQUE">SEMI-REBOQUE (100.000 km)</option>
+        <option value="ATEGO 1933SCE">ATEGO 1933SCE</option>
+        <option value="ACTROSS 2045">ACTROSS 2045</option>
+        <option value="VM360">VM360</option>
+        <option value="VM 290 6X2 R">VM 290 6X2 R</option>
+        <option value="VOLVO FH">VOLVO FH</option>
+        <option value="SEMI-REBOQUE">SEMI-REBOQUE</option>
       </select>
+      <p style="font-size:12px;color:var(--text-dim);margin:-8px 0 14px;">Filtro intermediário: 25.000 km, igual pra qualquer modelo.</p>
       <label for="m-data">Data</label>
       <input id="m-data" type="date">
       <label for="m-km">KM da troca</label>
@@ -196,10 +215,43 @@
     </div>
 
     <div class="card">
-      <h2>Status da frota</h2>
+      <h2>Status da frota (Filtros)</h2>
       <input id="fleet-search" type="text" placeholder="Buscar placa..." autocapitalize="characters" style="margin-bottom:12px;">
       <div id="fleet-list"><div class="empty">Carregando…</div></div>
       <div class="refresh-link" id="refresh-fleet">atualizar lista</div>
+    </div>
+
+    </div>
+
+    <div class="subpanel" id="sub-mt-geral" style="display:none;">
+
+    <div class="card">
+      <h2>Lançar revisão geral</h2>
+      <label for="g-placa">Placa</label>
+      <input id="g-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
+      <label for="g-tipo-veiculo">Modelo do veículo</label>
+      <select id="g-tipo-veiculo">
+        <option value="ATEGO 1933SCE">ATEGO 1933SCE (50.000 km)</option>
+        <option value="VM360">VM360 (50.000 km)</option>
+        <option value="VM 290 6X2 R">VM 290 6X2 R (50.000 km)</option>
+        <option value="ACTROSS 2045">ACTROSS 2045 (60.000 km)</option>
+        <option value="VOLVO FH">VOLVO FH (60.000 km)</option>
+      </select>
+      <label for="g-data">Data</label>
+      <input id="g-data" type="date">
+      <label for="g-km">KM da revisão</label>
+      <input id="g-km" type="number" inputmode="numeric" placeholder="Ex: 152300">
+      <button class="btn" id="btn-lancar-geral">Lançar</button>
+      <div class="msg" id="msg-lancar-geral"></div>
+    </div>
+
+    <div class="card">
+      <h2>Status da frota (Revisão Geral)</h2>
+      <input id="fleet-search-geral" type="text" placeholder="Buscar placa..." autocapitalize="characters" style="margin-bottom:12px;">
+      <div id="fleet-list-geral"><div class="empty">Carregando…</div></div>
+      <div class="refresh-link" id="refresh-fleet-geral">atualizar lista</div>
+    </div>
+
     </div>
 
     <div class="refresh-link" id="frota-sair-manutencao">sair</div>
@@ -209,8 +261,14 @@
     <!-- ---- conteúdo liberado pela senha de ADM ---- -->
     <div id="frota-adm" style="display:none;">
 
+      <div class="subtabs">
+        <div class="subtab active" data-subtab="adm-filtros">Filtros</div>
+        <div class="subtab" data-subtab="adm-geral">Revisão Geral</div>
+      </div>
+
+      <div class="subpanel active" id="sub-adm-filtros">
       <div class="card">
-        <h2>Resumo</h2>
+        <h2>Resumo (Filtros)</h2>
         <div class="stat-grid" id="adm-stats">
           <div class="stat ok"><div class="num">–</div><div class="lbl">Em dia</div></div>
           <div class="stat warn"><div class="num">–</div><div class="lbl">Perto</div></div>
@@ -218,9 +276,23 @@
         </div>
         <div style="margin-top:16px;" id="adm-bars"></div>
       </div>
+      </div>
+
+      <div class="subpanel" id="sub-adm-geral" style="display:none;">
+      <div class="card">
+        <h2>Resumo (Revisão Geral)</h2>
+        <div class="stat-grid" id="adm-stats-geral">
+          <div class="stat ok"><div class="num">–</div><div class="lbl">Em dia</div></div>
+          <div class="stat warn"><div class="num">–</div><div class="lbl">Perto</div></div>
+          <div class="stat late"><div class="num">–</div><div class="lbl">Vencido</div></div>
+        </div>
+        <div style="margin-top:16px;" id="adm-bars-geral"></div>
+      </div>
+      </div>
 
       <div class="card">
         <h2>Atualizar KM atual</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin:0 0 10px;">Atualiza a placa nas duas preventivas (Filtros e Revisão Geral) de uma vez.</p>
         <label for="a-placa">Placa</label>
         <input id="a-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
         <label for="a-km">KM atual</label>
@@ -231,7 +303,7 @@
 
       <div class="card">
         <h2>Importar KM do Omnilink</h2>
-        <p style="font-size:13px;color:#666;margin:0 0 10px;">Suba o relatório do Omnilink (Excel ou CSV). Veículo desligado (KM zerado) não apaga o KM que já está salvo — só atualiza quando vier um valor real, e sempre usando só a parte inteira do Hodômetro (antes da vírgula).</p>
+        <p style="font-size:13px;color:#666;margin:0 0 10px;">Suba o relatório do Omnilink (Excel ou CSV). Atualiza as duas preventivas de uma vez. Veículo desligado (KM zerado) não apaga o KM que já está salvo — só atualiza quando vier um valor real, e sempre usando só a parte inteira do Hodômetro (antes da vírgula).</p>
         <input type="file" id="om-file" accept=".csv,.xlsx,.xls">
         <div id="om-preview" style="display:none; margin-top:12px;">
           <label for="om-col-placa">Qual coluna é a Placa?</label>
@@ -402,10 +474,7 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
   }
 });
 
-// ---------- Mecânica: status da frota ----------
-let fleetData = [];
-let fleetOpenGroups = { vencido: true, perto: false, emdia: false };
-
+// ---------- Status da frota (genérico: serve pra Filtros e Revisão Geral) ----------
 function renderFleetRow(v){
   const cls = statusClass(v);
   const label = v.status === 'VENCIDO' ? 'VENCIDO' : (v.perto ? 'EM DIA · perto de vencer' : 'EM DIA');
@@ -418,67 +487,131 @@ function renderFleetRow(v){
     </div>`;
 }
 
-function renderFleet(){
-  const box = document.getElementById('fleet-list');
-  const termo = document.getElementById('fleet-search').value.trim().toUpperCase();
+function criarPainelFrota(apiPath, listElId, searchElId){
+  let data = [];
+  let openGroups = { vencido:true, perto:false, emdia:false };
 
-  if(termo){
-    const filtrados = fleetData.filter(v=>v.placa.includes(termo));
-    box.innerHTML = filtrados.length
-      ? filtrados.map(renderFleetRow).join('')
-      : '<div class="empty">Nenhuma placa encontrada.</div>';
-    return;
-  }
+  function render(){
+    const box = document.getElementById(listElId);
+    const termo = document.getElementById(searchElId).value.trim().toUpperCase();
 
-  const grupos = [
-    { key:'vencido', titulo:'Vencidas', itens: fleetData.filter(v=>v.status==='VENCIDO') },
-    { key:'perto', titulo:'Perto de vencer', itens: fleetData.filter(v=>v.status!=='VENCIDO' && v.perto) },
-    { key:'emdia', titulo:'Em dia', itens: fleetData.filter(v=>v.status!=='VENCIDO' && !v.perto) },
-  ];
-
-  box.innerHTML = grupos.map(g=>{
-    const aberto = fleetOpenGroups[g.key];
-    return `<div class="fleet-group">
-      <div class="fleet-group-header" data-group="${g.key}">
-        <span>${g.titulo} (${g.itens.length})</span>
-        <span>${aberto ? '▲' : '▼'}</span>
-      </div>
-      ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(renderFleetRow).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  box.querySelectorAll('.fleet-group-header').forEach(h=>{
-    h.addEventListener('click', ()=>{
-      const k = h.dataset.group;
-      fleetOpenGroups[k] = !fleetOpenGroups[k];
-      renderFleet();
-    });
-  });
-}
-
-async function loadFleet(){
-  const box = document.getElementById('fleet-list');
-  box.innerHTML = '<div class="empty">Carregando…</div>';
-  try{
-    const data = await api('/api/status');
-    fleetData = data.frota || [];
-    if(fleetData.length === 0){
-      box.innerHTML = '<div class="empty">Nenhuma placa cadastrada ainda.</div>';
+    if(termo){
+      const filtrados = data.filter(v=>v.placa.includes(termo));
+      box.innerHTML = filtrados.length
+        ? filtrados.map(renderFleetRow).join('')
+        : '<div class="empty">Nenhuma placa encontrada.</div>';
       return;
     }
-    renderFleet();
-  }catch(e){
-    box.innerHTML = '<div class="empty">Erro ao carregar: '+e.message+'</div>';
-  }
-}
-document.getElementById('refresh-fleet').addEventListener('click', loadFleet);
-document.getElementById('fleet-search').addEventListener('input', renderFleet);
 
-// ---------- ADM: relatório ----------
-async function loadRelatorio(){
+    const grupos = [
+      { key:'vencido', titulo:'Vencidas', itens: data.filter(v=>v.status==='VENCIDO') },
+      { key:'perto', titulo:'Perto de vencer', itens: data.filter(v=>v.status!=='VENCIDO' && v.perto) },
+      { key:'emdia', titulo:'Em dia', itens: data.filter(v=>v.status!=='VENCIDO' && !v.perto) },
+    ];
+
+    box.innerHTML = grupos.map(g=>{
+      const aberto = openGroups[g.key];
+      return `<div class="fleet-group">
+        <div class="fleet-group-header" data-group="${g.key}">
+          <span>${g.titulo} (${g.itens.length})</span>
+          <span>${aberto ? '▲' : '▼'}</span>
+        </div>
+        ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(renderFleetRow).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    box.querySelectorAll('.fleet-group-header').forEach(h=>{
+      h.addEventListener('click', ()=>{
+        const k = h.dataset.group;
+        openGroups[k] = !openGroups[k];
+        render();
+      });
+    });
+  }
+
+  async function load(){
+    const box = document.getElementById(listElId);
+    box.innerHTML = '<div class="empty">Carregando…</div>';
+    try{
+      const resp = await api(apiPath);
+      data = resp.frota || [];
+      if(data.length === 0){
+        box.innerHTML = '<div class="empty">Nenhuma placa cadastrada ainda.</div>';
+        return;
+      }
+      render();
+    }catch(e){
+      box.innerHTML = '<div class="empty">Erro ao carregar: '+e.message+'</div>';
+    }
+  }
+
+  document.getElementById(searchElId).addEventListener('input', render);
+  return { load, render };
+}
+
+const painelFiltros = criarPainelFrota('/api/status', 'fleet-list', 'fleet-search');
+const painelGeral = criarPainelFrota('/api/status-geral', 'fleet-list-geral', 'fleet-search-geral');
+function loadFleet(){ return painelFiltros.load(); }
+function loadFleetGeral(){ return painelGeral.load(); }
+
+document.getElementById('refresh-fleet').addEventListener('click', loadFleet);
+document.getElementById('refresh-fleet-geral').addEventListener('click', loadFleetGeral);
+
+// ---------- Manutenção: lançar revisão geral ----------
+document.getElementById('btn-lancar-geral').addEventListener('click', async ()=>{
+  const placa = document.getElementById('g-placa').value.trim().toUpperCase();
+  const tipoVeiculo = document.getElementById('g-tipo-veiculo').value;
+  const data = document.getElementById('g-data').value;
+  const km = document.getElementById('g-km').value;
+  const msg = document.getElementById('msg-lancar-geral');
+  const btn = document.getElementById('btn-lancar-geral');
+
+  if(!placa || !data || !km){
+    showMsg(msg, 'Preenche placa, data e KM.', false);
+    return;
+  }
+  if(!placaValida(placa)){
+    showMsg(msg, 'Placa inválida. Use o formato ABC1234 ou ABC1D23.', false);
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Enviando…';
   try{
-    const data = await api('/api/relatorio?senha=' + encodeURIComponent(frotaSenha));
-    const statEls = document.querySelectorAll('#adm-stats .stat .num');
+    await api('/api/lancar-geral', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({placa, tipoVeiculo, data, km: Number(km), tipo: 'REVISÃO GERAL', senha: frotaSenha})
+    });
+    showMsg(msg, 'Revisão geral lançada com sucesso.', true);
+    document.getElementById('g-placa').value = '';
+    document.getElementById('g-km').value = '';
+    loadFleetGeral();
+  }catch(e){
+    showMsg(msg, 'Não deu pra lançar: ' + e.message, false);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Lançar';
+  }
+});
+
+// ---------- Sub-abas (Filtros / Revisão Geral, dentro de Manutenção e ADM) ----------
+document.querySelectorAll('.subtab').forEach(st=>{
+  st.addEventListener('click', ()=>{
+    const container = st.closest('.subtabs').parentElement;
+    container.querySelectorAll(':scope > .subtabs > .subtab').forEach(s=>s.classList.remove('active'));
+    container.querySelectorAll(':scope > .subpanel').forEach(p=>{ p.classList.remove('active'); p.style.display = 'none'; });
+    st.classList.add('active');
+    const alvo = document.getElementById('sub-'+st.dataset.subtab);
+    alvo.classList.add('active');
+    alvo.style.display = 'block';
+    if(st.dataset.subtab === 'mt-geral') loadFleetGeral();
+    if(st.dataset.subtab === 'adm-geral') loadRelatorioGeral();
+  });
+});
+
+// ---------- ADM: relatório (genérico) ----------
+async function carregarRelatorio(apiPath, statsElId, barsElId){
+  try{
+    const data = await api(apiPath + '?senha=' + encodeURIComponent(frotaSenha));
+    const statEls = document.querySelectorAll('#'+statsElId+' .stat .num');
     statEls[0].textContent = data.ok;
     statEls[1].textContent = data.perto;
     statEls[2].textContent = data.vencida;
@@ -489,7 +622,7 @@ async function loadRelatorio(){
       {lbl:'Perto de vencer', val:data.perto, color:'var(--warn)'},
       {lbl:'Vencido', val:data.vencida, color:'var(--late)'},
     ];
-    document.getElementById('adm-bars').innerHTML = bars.map(b=>`
+    document.getElementById(barsElId).innerHTML = bars.map(b=>`
       <div class="bar-row">
         <div class="bar-label"><span>${b.lbl}</span><span>${b.val}</span></div>
         <div class="bar-track"><div class="bar-fill" style="width:${(b.val/total*100).toFixed(0)}%; background:${b.color}"></div></div>
@@ -498,8 +631,10 @@ async function loadRelatorio(){
     console.error(e);
   }
 }
+function loadRelatorio(){ return carregarRelatorio('/api/relatorio', 'adm-stats', 'adm-bars'); }
+function loadRelatorioGeral(){ return carregarRelatorio('/api/relatorio-geral', 'adm-stats-geral', 'adm-bars-geral'); }
 
-// ---------- ADM: atualizar KM ----------
+// ---------- ADM: atualizar KM (atualiza as duas preventivas) ----------
 document.getElementById('btn-atualizar-km').addEventListener('click', async ()=>{
   const placa = document.getElementById('a-placa').value.trim().toUpperCase();
   const km = document.getElementById('a-km').value;
@@ -515,10 +650,20 @@ document.getElementById('btn-atualizar-km').addEventListener('click', async ()=>
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({placa, km: Number(km), senha: frotaSenha})
     });
-    showMsg(msg, 'KM atualizado.', true);
+    let avisoGeral = '';
+    try{
+      await api('/api/atualizar-km-geral', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({placa, km: Number(km), senha: frotaSenha})
+      });
+    }catch(e2){
+      avisoGeral = ' (Revisão Geral não atualizada: ' + e2.message + ')';
+    }
+    showMsg(msg, 'KM atualizado.' + avisoGeral, true);
     document.getElementById('a-placa').value = '';
     document.getElementById('a-km').value = '';
     loadRelatorio();
+    loadRelatorioGeral();
   }catch(e){
     showMsg(msg, 'Não deu pra atualizar: ' + e.message, false);
   }finally{
