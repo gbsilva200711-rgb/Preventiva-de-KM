@@ -183,11 +183,6 @@
     <!-- ---- conteúdo liberado pela senha de MANUTENÇÃO ---- -->
     <div id="frota-manutencao" style="display:none;">
 
-    <div class="subtabs">
-      <div class="subtab active" data-subtab="mt-filtros">Filtros</div>
-      <div class="subtab" data-subtab="mt-geral">Revisão Geral</div>
-    </div>
-
     <div class="subpanel active" id="sub-mt-filtros">
 
     <div class="card">
@@ -223,37 +218,6 @@
 
     </div>
 
-    <div class="subpanel" id="sub-mt-geral" style="display:none;">
-
-    <div class="card">
-      <h2>Lançar revisão geral</h2>
-      <label for="g-placa">Placa</label>
-      <input id="g-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
-      <label for="g-tipo-veiculo">Modelo do veículo</label>
-      <select id="g-tipo-veiculo">
-        <option value="ATEGO 1933SCE">ATEGO 1933SCE (50.000 km)</option>
-        <option value="VM360">VM360 (50.000 km)</option>
-        <option value="VM 290 6X2 R">VM 290 6X2 R (50.000 km)</option>
-        <option value="ACTROSS 2045">ACTROSS 2045 (60.000 km)</option>
-        <option value="VOLVO FH">VOLVO FH (60.000 km)</option>
-      </select>
-      <label for="g-data">Data</label>
-      <input id="g-data" type="date">
-      <label for="g-km">KM da revisão</label>
-      <input id="g-km" type="number" inputmode="numeric" placeholder="Ex: 152300">
-      <button class="btn" id="btn-lancar-geral">Lançar</button>
-      <div class="msg" id="msg-lancar-geral"></div>
-    </div>
-
-    <div class="card">
-      <h2>Status da frota (Revisão Geral)</h2>
-      <input id="fleet-search-geral" type="text" placeholder="Buscar placa..." autocapitalize="characters" style="margin-bottom:12px;">
-      <div id="fleet-list-geral"><div class="empty">Carregando…</div></div>
-      <div class="refresh-link" id="refresh-fleet-geral">atualizar lista</div>
-    </div>
-
-    </div>
-
     <div class="refresh-link" id="frota-sair-manutencao">sair</div>
 
     </div>
@@ -279,6 +243,7 @@
       </div>
 
       <div class="subpanel" id="sub-adm-geral" style="display:none;">
+
       <div class="card">
         <h2>Resumo (Revisão Geral)</h2>
         <div class="stat-grid" id="adm-stats-geral">
@@ -288,6 +253,34 @@
         </div>
         <div style="margin-top:16px;" id="adm-bars-geral"></div>
       </div>
+
+      <div class="card">
+        <h2>Lançar revisão geral</h2>
+        <label for="g-placa">Placa</label>
+        <input id="g-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
+        <label for="g-tipo-veiculo">Modelo do veículo</label>
+        <select id="g-tipo-veiculo">
+          <option value="ATEGO 1933SCE">ATEGO 1933SCE (50.000 km)</option>
+          <option value="VM360">VM360 (50.000 km)</option>
+          <option value="VM 290 6X2 R">VM 290 6X2 R (50.000 km)</option>
+          <option value="ACTROSS 2045">ACTROSS 2045 (60.000 km)</option>
+          <option value="VOLVO FH">VOLVO FH (60.000 km)</option>
+        </select>
+        <label for="g-data">Data</label>
+        <input id="g-data" type="date">
+        <label for="g-km">KM da revisão</label>
+        <input id="g-km" type="number" inputmode="numeric" placeholder="Ex: 152300">
+        <button class="btn" id="btn-lancar-geral">Lançar</button>
+        <div class="msg" id="msg-lancar-geral"></div>
+      </div>
+
+      <div class="card">
+        <h2>Status da frota (Revisão Geral)</h2>
+        <input id="fleet-search-geral" type="text" placeholder="Buscar placa..." autocapitalize="characters" style="margin-bottom:12px;">
+        <div id="fleet-list-geral"><div class="empty">Carregando…</div></div>
+        <div class="refresh-link" id="refresh-fleet-geral">atualizar lista</div>
+      </div>
+
       </div>
 
       <div class="card">
@@ -602,8 +595,7 @@ document.querySelectorAll('.subtab').forEach(st=>{
     const alvo = document.getElementById('sub-'+st.dataset.subtab);
     alvo.classList.add('active');
     alvo.style.display = 'block';
-    if(st.dataset.subtab === 'mt-geral') loadFleetGeral();
-    if(st.dataset.subtab === 'adm-geral') loadRelatorioGeral();
+    if(st.dataset.subtab === 'adm-geral'){ loadRelatorioGeral(); loadFleetGeral(); }
   });
 });
 
