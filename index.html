@@ -112,6 +112,8 @@
   .fleet-row.late{ border-left-color:var(--late); }
   .placa{ font-family:'JetBrains Mono', monospace; font-weight:700; font-size:15px; }
   .fleet-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .motivo-nota{ font-size:11px; color:var(--warn); padding:0 4px 10px; margin-top:-6px; }
+  .motivo-link{ text-decoration:underline; cursor:pointer; color:var(--text-dim); }
   .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
   .dot.ok{ background:var(--ok);} .dot.warn{ background:var(--warn);} .dot.late{ background:var(--late);}
 
@@ -277,6 +279,14 @@
           <div class="stat late"><div class="num">–</div><div class="lbl">Vencido</div></div>
         </div>
         <div style="margin-top:16px;" id="adm-bars-geral"></div>
+      </div>
+
+      <div class="card">
+        <h2>🚛 Relatório para Last Mile</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin:0 0 10px;">Veículos vencidos ou perto de vencer na Revisão Geral — pra avisar o Last Mile a não escalar.</p>
+        <div id="lastmile-list"><div class="empty">Carregando…</div></div>
+        <button class="btn secondary" id="btn-copiar-lastmile" style="margin-top:14px;">Copiar lista</button>
+        <div class="msg" id="msg-lastmile"></div>
       </div>
 
       <div class="card">
@@ -468,19 +478,25 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
 });
 
 // ---------- Status da frota (genérico: serve pra Filtros e Revisão Geral) ----------
-function renderFleetRow(v){
+function renderFleetRow(v, comMotivo){
   const cls = statusClass(v);
   const label = v.status === 'VENCIDO' ? 'VENCIDO' : (v.perto ? 'EM DIA · perto de vencer' : 'EM DIA');
+  let motivoHtml = '';
+  if(comMotivo && v.status === 'VENCIDO'){
+    motivoHtml = v.motivoNaoRealizado
+      ? `<div class="motivo-nota">🗒 ${v.dataNaoRealizado || ''}: ${v.motivoNaoRealizado} <span class="motivo-link" data-placa="${v.placa}">editar</span></div>`
+      : `<div class="motivo-nota"><span class="motivo-link" data-placa="${v.placa}">+ motivo (não foi possível trocar)</span></div>`;
+  }
   return `<div class="fleet-row ${cls}">
       <div>
         <div class="placa">${v.placa}</div>
         <div class="fleet-meta"><span class="dot ${cls}"></span>${label}</div>
       </div>
       <div class="faltam">${v.faltam >= 0 ? fmtNum(v.faltam)+' km' : 'vencida'}</div>
-    </div>`;
+    </div>${motivoHtml}`;
 }
 
-function criarPainelFrota(apiPath, listElId, searchElId){
+function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
   let data = [];
   let openGroups = { vencido:true, perto:false, emdia:false };
 
@@ -491,7 +507,7 @@ function criarPainelFrota(apiPath, listElId, searchElId){
     if(termo){
       const filtrados = data.filter(v=>v.placa.includes(termo));
       box.innerHTML = filtrados.length
-        ? filtrados.map(renderFleetRow).join('')
+        ? filtrados.map(v=>renderFleetRow(v, comMotivo)).join('')
         : '<div class="empty">Nenhuma placa encontrada.</div>';
       return;
     }
@@ -509,7 +525,7 @@ function criarPainelFrota(apiPath, listElId, searchElId){
           <span>${g.titulo} (${g.itens.length})</span>
           <span>${aberto ? '▲' : '▼'}</span>
         </div>
-        ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(renderFleetRow).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
+        ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(v=>renderFleetRow(v, comMotivo)).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
       </div>`;
     }).join('');
 
@@ -539,11 +555,35 @@ function criarPainelFrota(apiPath, listElId, searchElId){
   }
 
   document.getElementById(searchElId).addEventListener('input', render);
+
+  if(comMotivo){
+    document.getElementById(listElId).addEventListener('click', async (e)=>{
+      const el = e.target.closest('.motivo-link');
+      if(!el) return;
+      const placa = el.dataset.placa;
+      const item = data.find(v=>v.placa===placa);
+      const atual = item ? (item.motivoNaoRealizado || '') : '';
+      const motivo = prompt('Motivo de não ter trocado o filtro de ' + placa + ':', atual);
+      if(motivo === null) return;
+      if(!motivo.trim()){ alert('O motivo não pode ficar vazio.'); return; }
+      try{
+        const hoje = new Date().toISOString().slice(0,10);
+        await api('/api/nao-realizado', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ placa, motivo: motivo.trim().toUpperCase(), data: hoje, senha: frotaSenha })
+        });
+        load();
+      }catch(err){
+        alert('Não deu pra salvar: ' + err.message);
+      }
+    });
+  }
+
   return { load, render };
 }
 
-const painelFiltros = criarPainelFrota('/api/status', 'fleet-list', 'fleet-search');
-const painelGeral = criarPainelFrota('/api/status-geral', 'fleet-list-geral', 'fleet-search-geral');
+const painelFiltros = criarPainelFrota('/api/status', 'fleet-list', 'fleet-search', true);
+const painelGeral = criarPainelFrota('/api/status-geral', 'fleet-list-geral', 'fleet-search-geral', false);
 function loadFleet(){ return painelFiltros.load(); }
 function loadFleetGeral(){ return painelGeral.load(); }
 
@@ -595,7 +635,7 @@ document.querySelectorAll('.subtab').forEach(st=>{
     const alvo = document.getElementById('sub-'+st.dataset.subtab);
     alvo.classList.add('active');
     alvo.style.display = 'block';
-    if(st.dataset.subtab === 'adm-geral'){ loadRelatorioGeral(); loadFleetGeral(); }
+    if(st.dataset.subtab === 'adm-geral'){ loadRelatorioGeral(); loadFleetGeral(); loadRelatorioLastMile(); }
   });
 });
 
@@ -625,6 +665,58 @@ async function carregarRelatorio(apiPath, statsElId, barsElId){
 }
 function loadRelatorio(){ return carregarRelatorio('/api/relatorio', 'adm-stats', 'adm-bars'); }
 function loadRelatorioGeral(){ return carregarRelatorio('/api/relatorio-geral', 'adm-stats-geral', 'adm-bars-geral'); }
+
+// ---------- ADM: relatório pra Last Mile (Revisão Geral) ----------
+async function loadRelatorioLastMile(){
+  const box = document.getElementById('lastmile-list');
+  box.innerHTML = '<div class="empty">Carregando…</div>';
+  try{
+    const resp = await api('/api/status-geral');
+    const itens = (resp.frota || []).filter(v => v.status === 'VENCIDO' || v.perto);
+    if(!itens.length){
+      box.innerHTML = '<div class="empty">Nenhum veículo vencido ou perto de vencer. 🎉</div>';
+      return;
+    }
+    itens.sort((a,b) => (a.status==='VENCIDO'?0:1) - (b.status==='VENCIDO'?0:1));
+    box.innerHTML = itens.map(v=>{
+      const cls = v.status === 'VENCIDO' ? 'late' : 'warn';
+      const situacao = v.status === 'VENCIDO'
+        ? `vencido há ${fmtNum(Math.abs(v.faltam))} km`
+        : `faltam ${fmtNum(v.faltam)} km`;
+      return `<div class="fleet-row ${cls}">
+        <div>
+          <div class="placa">${v.placa} <span style="font-weight:400;color:var(--text-dim);">— ${v.modelo || '?'}</span></div>
+          <div class="fleet-meta">${situacao} · KM atual: ${fmtNum(v.kmAtual)}${v.ultimaData ? ' · última revisão: ' + v.ultimaData : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    box.innerHTML = '<div class="empty">Erro: ' + e.message + '</div>';
+  }
+}
+
+document.getElementById('btn-copiar-lastmile').addEventListener('click', async ()=>{
+  const msg = document.getElementById('msg-lastmile');
+  try{
+    const resp = await api('/api/status-geral');
+    const vencidos = (resp.frota || []).filter(v => v.status === 'VENCIDO');
+    const pertos = (resp.frota || []).filter(v => v.status !== 'VENCIDO' && v.perto);
+    const hoje = new Date().toLocaleDateString('pt-BR');
+
+    const linha = v => `${v.placa} — ${v.modelo || '?'} — ${v.status === 'VENCIDO' ? 'vencido há ' + fmtNum(Math.abs(v.faltam)) : 'faltam ' + fmtNum(v.faltam)} km (atual: ${fmtNum(v.kmAtual)} km)`;
+
+    let texto = `🚛 J&T EXPRESS\nVEÍCULOS VENCIDOS E PERTO DE VENCER — PREVENTIVA CONCESSIONÁRIA\n(gerado em ${hoje})\n\n`;
+    texto += `🔴 VENCIDOS (${vencidos.length})\n`;
+    texto += vencidos.length ? vencidos.map(linha).join('\n') : 'Nenhum';
+    texto += `\n\n🟡 PERTO DE VENCER (${pertos.length})\n`;
+    texto += pertos.length ? pertos.map(linha).join('\n') : 'Nenhum';
+
+    await navigator.clipboard.writeText(texto);
+    showMsg(msg, 'Lista copiada! Já pode colar no WhatsApp.', true);
+  }catch(e){
+    showMsg(msg, 'Não deu pra copiar: ' + e.message, false);
+  }
+});
 
 // ---------- ADM: atualizar KM (atualiza as duas preventivas) ----------
 document.getElementById('btn-atualizar-km').addEventListener('click', async ()=>{
