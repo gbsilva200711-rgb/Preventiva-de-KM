@@ -240,6 +240,31 @@
         </div>
         <div style="margin-top:16px;" id="adm-bars"></div>
       </div>
+
+      <div class="card">
+        <h2>Atualizar KM atual</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin:0 0 10px;">Atualiza a placa nas duas preventivas (Filtros e Revisão Geral) de uma vez.</p>
+        <label for="a-placa">Placa</label>
+        <input id="a-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
+        <label for="a-km">KM atual</label>
+        <input id="a-km" type="number" inputmode="numeric" placeholder="Ex: 158900">
+        <button class="btn" id="btn-atualizar-km">Atualizar</button>
+        <div class="msg" id="msg-atualizar-km"></div>
+      </div>
+
+      <div class="card">
+        <h2>Importar KM do Omnilink</h2>
+        <p style="font-size:13px;color:#666;margin:0 0 10px;">Suba o relatório do Omnilink (Excel ou CSV). Atualiza as duas preventivas de uma vez. Veículo desligado (KM zerado) não apaga o KM que já está salvo — só atualiza quando vier um valor real, e sempre usando só a parte inteira do Hodômetro (antes da vírgula).</p>
+        <input type="file" id="om-file" accept=".csv,.xlsx,.xls">
+        <div id="om-preview" style="display:none; margin-top:12px;">
+          <label for="om-col-placa">Qual coluna é a Placa?</label>
+          <select id="om-col-placa"></select>
+          <label for="om-col-km">Qual coluna é o KM/Hodômetro?</label>
+          <select id="om-col-km"></select>
+          <button class="btn" id="btn-om-importar" style="margin-top:10px;">Importar</button>
+        </div>
+        <div class="msg" id="msg-om-importar"></div>
+      </div>
       </div>
 
       <div class="subpanel" id="sub-adm-geral" style="display:none;">
@@ -281,31 +306,6 @@
         <div class="refresh-link" id="refresh-fleet-geral">atualizar lista</div>
       </div>
 
-      </div>
-
-      <div class="card">
-        <h2>Atualizar KM atual</h2>
-        <p style="font-size:13px;color:var(--text-dim);margin:0 0 10px;">Atualiza a placa nas duas preventivas (Filtros e Revisão Geral) de uma vez.</p>
-        <label for="a-placa">Placa</label>
-        <input id="a-placa" type="text" placeholder="Ex: ABC1D23" autocapitalize="characters" maxlength="8">
-        <label for="a-km">KM atual</label>
-        <input id="a-km" type="number" inputmode="numeric" placeholder="Ex: 158900">
-        <button class="btn" id="btn-atualizar-km">Atualizar</button>
-        <div class="msg" id="msg-atualizar-km"></div>
-      </div>
-
-      <div class="card">
-        <h2>Importar KM do Omnilink</h2>
-        <p style="font-size:13px;color:#666;margin:0 0 10px;">Suba o relatório do Omnilink (Excel ou CSV). Atualiza as duas preventivas de uma vez. Veículo desligado (KM zerado) não apaga o KM que já está salvo — só atualiza quando vier um valor real, e sempre usando só a parte inteira do Hodômetro (antes da vírgula).</p>
-        <input type="file" id="om-file" accept=".csv,.xlsx,.xls">
-        <div id="om-preview" style="display:none; margin-top:12px;">
-          <label for="om-col-placa">Qual coluna é a Placa?</label>
-          <select id="om-col-placa"></select>
-          <label for="om-col-km">Qual coluna é o KM/Hodômetro?</label>
-          <select id="om-col-km"></select>
-          <button class="btn" id="btn-om-importar" style="margin-top:10px;">Importar</button>
-        </div>
-        <div class="msg" id="msg-om-importar"></div>
       </div>
 
       <div class="refresh-link" id="frota-sair-adm">sair</div>
