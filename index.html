@@ -283,9 +283,8 @@
 
       <div class="card">
         <h2>🚛 Relatório para Last Mile</h2>
-        <p style="font-size:13px;color:var(--text-dim);margin:0 0 10px;">Veículos vencidos ou perto de vencer na Revisão Geral — pra avisar o Last Mile a não escalar.</p>
-        <div id="lastmile-list"><div class="empty">Carregando…</div></div>
-        <button class="btn secondary" id="btn-copiar-lastmile" style="margin-top:14px;">Copiar lista</button>
+        <p style="font-size:13px;color:var(--text-dim);margin:0 0 14px;">Baixa um Excel com os veículos vencidos e perto de vencer na Revisão Geral, pronto pra mandar pro Last Mile.</p>
+        <button class="btn" id="btn-baixar-lastmile">Baixar Excel</button>
         <div class="msg" id="msg-lastmile"></div>
       </div>
 
@@ -635,7 +634,7 @@ document.querySelectorAll('.subtab').forEach(st=>{
     const alvo = document.getElementById('sub-'+st.dataset.subtab);
     alvo.classList.add('active');
     alvo.style.display = 'block';
-    if(st.dataset.subtab === 'adm-geral'){ loadRelatorioGeral(); loadFleetGeral(); loadRelatorioLastMile(); }
+    if(st.dataset.subtab === 'adm-geral'){ loadRelatorioGeral(); loadFleetGeral(); }
   });
 });
 
@@ -666,55 +665,42 @@ async function carregarRelatorio(apiPath, statsElId, barsElId){
 function loadRelatorio(){ return carregarRelatorio('/api/relatorio', 'adm-stats', 'adm-bars'); }
 function loadRelatorioGeral(){ return carregarRelatorio('/api/relatorio-geral', 'adm-stats-geral', 'adm-bars-geral'); }
 
-// ---------- ADM: relatório pra Last Mile (Revisão Geral) ----------
-async function loadRelatorioLastMile(){
-  const box = document.getElementById('lastmile-list');
-  box.innerHTML = '<div class="empty">Carregando…</div>';
+// ---------- ADM: relatório pra Last Mile (Revisão Geral) — baixa Excel ----------
+document.getElementById('btn-baixar-lastmile').addEventListener('click', async ()=>{
+  const msg = document.getElementById('msg-lastmile');
+  const btn = document.getElementById('btn-baixar-lastmile');
+  btn.disabled = true; btn.textContent = 'Gerando…';
   try{
     const resp = await api('/api/status-geral');
     const itens = (resp.frota || []).filter(v => v.status === 'VENCIDO' || v.perto);
+
     if(!itens.length){
-      box.innerHTML = '<div class="empty">Nenhum veículo vencido ou perto de vencer. 🎉</div>';
+      showMsg(msg, 'Nenhum veículo vencido ou perto de vencer agora.', true);
       return;
     }
+
     itens.sort((a,b) => (a.status==='VENCIDO'?0:1) - (b.status==='VENCIDO'?0:1));
-    box.innerHTML = itens.map(v=>{
-      const cls = v.status === 'VENCIDO' ? 'late' : 'warn';
-      const situacao = v.status === 'VENCIDO'
-        ? `vencido há ${fmtNum(Math.abs(v.faltam))} km`
-        : `faltam ${fmtNum(v.faltam)} km`;
-      return `<div class="fleet-row ${cls}">
-        <div>
-          <div class="placa">${v.placa} <span style="font-weight:400;color:var(--text-dim);">— ${v.modelo || '?'}</span></div>
-          <div class="fleet-meta">${situacao} · KM atual: ${fmtNum(v.kmAtual)}${v.ultimaData ? ' · última revisão: ' + v.ultimaData : ''}</div>
-        </div>
-      </div>`;
-    }).join('');
+
+    const linhas = itens.map(v => ({
+      Placa: v.placa,
+      Modelo: v.modelo || '',
+      Situação: v.status === 'VENCIDO' ? 'VENCIDO' : 'PERTO DE VENCER',
+      'KM Atual': v.kmAtual,
+      'KM Faltante': v.faltam,
+      'Última Revisão': v.ultimaData || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    ws['!cols'] = [{wch:12},{wch:16},{wch:16},{wch:12},{wch:12},{wch:16}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Last Mile');
+    const hoje = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `jt-express-vencidos-revisao-geral-${hoje}.xlsx`);
+    showMsg(msg, 'Excel baixado.', true);
   }catch(e){
-    box.innerHTML = '<div class="empty">Erro: ' + e.message + '</div>';
-  }
-}
-
-document.getElementById('btn-copiar-lastmile').addEventListener('click', async ()=>{
-  const msg = document.getElementById('msg-lastmile');
-  try{
-    const resp = await api('/api/status-geral');
-    const vencidos = (resp.frota || []).filter(v => v.status === 'VENCIDO');
-    const pertos = (resp.frota || []).filter(v => v.status !== 'VENCIDO' && v.perto);
-    const hoje = new Date().toLocaleDateString('pt-BR');
-
-    const linha = v => `${v.placa} — ${v.modelo || '?'} — ${v.status === 'VENCIDO' ? 'vencido há ' + fmtNum(Math.abs(v.faltam)) : 'faltam ' + fmtNum(v.faltam)} km (atual: ${fmtNum(v.kmAtual)} km)`;
-
-    let texto = `🚛 J&T EXPRESS\nVEÍCULOS VENCIDOS E PERTO DE VENCER — PREVENTIVA CONCESSIONÁRIA\n(gerado em ${hoje})\n\n`;
-    texto += `🔴 VENCIDOS (${vencidos.length})\n`;
-    texto += vencidos.length ? vencidos.map(linha).join('\n') : 'Nenhum';
-    texto += `\n\n🟡 PERTO DE VENCER (${pertos.length})\n`;
-    texto += pertos.length ? pertos.map(linha).join('\n') : 'Nenhum';
-
-    await navigator.clipboard.writeText(texto);
-    showMsg(msg, 'Lista copiada! Já pode colar no WhatsApp.', true);
-  }catch(e){
-    showMsg(msg, 'Não deu pra copiar: ' + e.message, false);
+    showMsg(msg, 'Não deu pra gerar: ' + e.message, false);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Baixar Excel';
   }
 });
 
