@@ -113,6 +113,10 @@
   .placa{ font-family:'JetBrains Mono', monospace; font-weight:700; font-size:15px; }
   .fleet-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; }
   .motivo-nota{ font-size:11px; color:var(--warn); padding:0 4px 10px; margin-top:-6px; }
+  .motivo-form{ display:flex; gap:6px; align-items:center; padding:0 4px 12px; margin-top:-4px; flex-wrap:wrap; }
+  .motivo-select{ flex:1; min-width:140px; padding:6px 8px; font-size:12px; background:var(--surface-2); color:var(--text); border:1px solid var(--line); border-radius:6px; }
+  .motivo-salvar{ font-size:11px; font-weight:600; color:var(--accent); cursor:pointer; text-decoration:underline; }
+  .motivo-cancelar{ font-size:11px; color:var(--text-dim); cursor:pointer; text-decoration:underline; }
   .motivo-link{ text-decoration:underline; cursor:pointer; color:var(--text-dim); }
   .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
   .dot.ok{ background:var(--ok);} .dot.warn{ background:var(--warn);} .dot.late{ background:var(--late);}
@@ -482,14 +486,32 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
 });
 
 // ---------- Status da frota (genérico: serve pra Filtros e Revisão Geral) ----------
-function renderFleetRow(v, comMotivo){
+const MOTIVOS_PADRAO = [
+  'VEÍCULO EM VIAGEM',
+  'VEÍCULO PROGRAMADO',
+  'VEÍCULO QUEBRADO',
+  'FALTA DE TEMPO',
+];
+
+function renderFleetRow(v, comMotivo, editandoMotivo){
   const cls = statusClass(v);
   const label = v.status === 'VENCIDO' ? 'VENCIDO' : (v.perto ? 'EM DIA · perto de vencer' : 'EM DIA');
   let motivoHtml = '';
   if(comMotivo && v.status === 'VENCIDO'){
-    motivoHtml = v.motivoNaoRealizado
-      ? `<div class="motivo-nota">🗒 ${v.dataNaoRealizado || ''}: ${v.motivoNaoRealizado} <span class="motivo-link" data-placa="${v.placa}">editar</span></div>`
-      : `<div class="motivo-nota"><span class="motivo-link" data-placa="${v.placa}">+ motivo (não foi possível trocar)</span></div>`;
+    if(editandoMotivo === v.placa){
+      motivoHtml = `<div class="motivo-form">
+        <select class="motivo-select" data-placa="${v.placa}">
+          <option value="">Selecione o motivo...</option>
+          ${MOTIVOS_PADRAO.map(m=>`<option value="${m}" ${v.motivoNaoRealizado===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+        <span class="motivo-salvar" data-placa="${v.placa}">Salvar</span>
+        <span class="motivo-cancelar" data-placa="${v.placa}">cancelar</span>
+      </div>`;
+    } else if(v.motivoNaoRealizado){
+      motivoHtml = `<div class="motivo-nota">🗒 ${v.dataNaoRealizado || ''}: ${v.motivoNaoRealizado} <span class="motivo-link" data-placa="${v.placa}">editar</span></div>`;
+    } else {
+      motivoHtml = `<div class="motivo-nota"><span class="motivo-link" data-placa="${v.placa}">+ motivo (não foi possível trocar)</span></div>`;
+    }
   }
   return `<div class="fleet-row ${cls}">
       <div>
@@ -503,6 +525,7 @@ function renderFleetRow(v, comMotivo){
 function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
   let data = [];
   let openGroups = { vencido:true, perto:false, emdia:false };
+  let editandoMotivo = null;
 
   function render(){
     const box = document.getElementById(listElId);
@@ -511,7 +534,7 @@ function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
     if(termo){
       const filtrados = data.filter(v=>v.placa.includes(termo));
       box.innerHTML = filtrados.length
-        ? filtrados.map(v=>renderFleetRow(v, comMotivo)).join('')
+        ? filtrados.map(v=>renderFleetRow(v, comMotivo, editandoMotivo)).join('')
         : '<div class="empty">Nenhuma placa encontrada.</div>';
       return;
     }
@@ -529,7 +552,7 @@ function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
           <span>${g.titulo} (${g.itens.length})</span>
           <span>${aberto ? '▲' : '▼'}</span>
         </div>
-        ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(v=>renderFleetRow(v, comMotivo)).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
+        ${aberto ? `<div class="fleet-group-body">${g.itens.length ? g.itens.map(v=>renderFleetRow(v, comMotivo, editandoMotivo)).join('') : '<div class="empty">Nenhuma placa nesse grupo.</div>'}</div>` : ''}
       </div>`;
     }).join('');
 
@@ -562,23 +585,35 @@ function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
 
   if(comMotivo){
     document.getElementById(listElId).addEventListener('click', async (e)=>{
-      const el = e.target.closest('.motivo-link');
-      if(!el) return;
-      const placa = el.dataset.placa;
-      const item = data.find(v=>v.placa===placa);
-      const atual = item ? (item.motivoNaoRealizado || '') : '';
-      const motivo = prompt('Motivo de não ter trocado o filtro de ' + placa + ':', atual);
-      if(motivo === null) return;
-      if(!motivo.trim()){ alert('O motivo não pode ficar vazio.'); return; }
-      try{
-        const hoje = new Date().toISOString().slice(0,10);
-        await api('/api/nao-realizado', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ placa, motivo: motivo.trim().toUpperCase(), data: hoje, senha: frotaSenha })
-        });
-        load();
-      }catch(err){
-        alert('Não deu pra salvar: ' + err.message);
+      const linkEl = e.target.closest('.motivo-link');
+      if(linkEl){
+        editandoMotivo = linkEl.dataset.placa;
+        render();
+        return;
+      }
+      const cancelarEl = e.target.closest('.motivo-cancelar');
+      if(cancelarEl){
+        editandoMotivo = null;
+        render();
+        return;
+      }
+      const salvarEl = e.target.closest('.motivo-salvar');
+      if(salvarEl){
+        const placa = salvarEl.dataset.placa;
+        const select = document.getElementById(listElId).querySelector(`.motivo-select[data-placa="${CSS.escape(placa)}"]`);
+        const motivo = select ? select.value : '';
+        if(!motivo){ alert('Escolhe um motivo da lista.'); return; }
+        try{
+          const hoje = new Date().toISOString().slice(0,10);
+          await api('/api/nao-realizado', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ placa, motivo, data: hoje, senha: frotaSenha })
+          });
+          editandoMotivo = null;
+          load();
+        }catch(err){
+          alert('Não deu pra salvar: ' + err.message);
+        }
       }
     });
   }
