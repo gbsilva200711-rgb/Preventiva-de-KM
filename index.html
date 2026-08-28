@@ -488,6 +488,7 @@ document.getElementById('btn-lancar').addEventListener('click', async ()=>{
 // ---------- Status da frota (genérico: serve pra Filtros e Revisão Geral) ----------
 const MOTIVOS_PADRAO = [
   'VEÍCULO EM VIAGEM',
+  'VEÍCULO PROGRAMADO',
   'VEÍCULO QUEBRADO',
   'FALTA DE TEMPO',
 ];
@@ -521,7 +522,7 @@ function renderFleetRow(v, comMotivo, editandoMotivo){
     </div>${motivoHtml}`;
 }
 
-function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
+function criarPainelFrota(apiPath, listElId, searchElId, comMotivo, apiMotivoPath){
   let data = [];
   let openGroups = { vencido:true, perto:false, emdia:false };
   let editandoMotivo = null;
@@ -604,7 +605,7 @@ function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
         if(!motivo){ alert('Escolhe um motivo da lista.'); return; }
         try{
           const hoje = new Date().toISOString().slice(0,10);
-          await api('/api/nao-realizado', {
+          await api(apiMotivoPath, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ placa, motivo, data: hoje, senha: frotaSenha })
           });
@@ -620,8 +621,8 @@ function criarPainelFrota(apiPath, listElId, searchElId, comMotivo){
   return { load, render };
 }
 
-const painelFiltros = criarPainelFrota('/api/status', 'fleet-list', 'fleet-search', true);
-const painelGeral = criarPainelFrota('/api/status-geral', 'fleet-list-geral', 'fleet-search-geral', false);
+const painelFiltros = criarPainelFrota('/api/status', 'fleet-list', 'fleet-search', true, '/api/nao-realizado');
+const painelGeral = criarPainelFrota('/api/status-geral', 'fleet-list-geral', 'fleet-search-geral', true, '/api/nao-realizado-geral');
 function loadFleet(){ return painelFiltros.load(); }
 function loadFleetGeral(){ return painelGeral.load(); }
 
